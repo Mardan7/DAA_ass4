@@ -1,0 +1,7 @@
+java.version=25.0.2
+java.vm.name=OpenJDK 64-Bit Server VM
+os.name=Windows 11
+os.arch=amd64
+availableProcessors=12
+processor=Intel64 Family 6 Model 154 Stepping 3, GenuineIntel
+seed=42; alphabet=abcd; warmup=10; measuredRuns=5; patternLength=20
