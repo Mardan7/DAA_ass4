@@ -1,6 +1,8 @@
 # Assignment 4 — Text Analysis
 
-A Java project comparing string algorithms: LCS, Levenshtein distance, naive string matching, KMP, Rabin–Karp, and Kasai's algorithm. The code uses no third-party Java libraries. This README serves as the full report.
+A Java application for three text-analysis tasks: comparing two strings, locating every occurrence of a pattern, and computing common prefixes of adjacent sorted suffixes. LCS measures shared subsequence length, while Levenshtein distance measures the minimum number of edits. Naive search, KMP, and Rabin–Karp solve the same exact-matching task using different strategies. Kasai's algorithm constructs an LCP array from a supplied suffix array.
+
+All six algorithms are implemented directly in Java without third-party Java libraries. This report presents their correctness arguments, complexity, tests, and measured performance. The experiments compare algorithms solving the same task; LCS length and edit distance are different outputs and should not be interpreted as interchangeable similarity scores.
 
 ## 1. Running the Project
 
@@ -13,14 +15,13 @@ java -cp out AlgorithmTests
 java -cp out Benchmark
 ```
 
-In PowerShell, if the JDK is installed but is not on PATH, you can specify its location. The following path was used on the computer where the experiments were run:
+For PowerShell, with a JDK on PATH, the equivalent commands are:
 
 ```powershell
-$jdkPath = "$env:USERPROFILE\.jdks\openjdk-25.0.2\bin"
 New-Item -ItemType Directory -Force out | Out-Null
-& "$jdkPath\javac.exe" -encoding UTF-8 -d out src\*.java
-& "$jdkPath\java.exe" -cp out AlgorithmTests
-& "$jdkPath\java.exe" -cp out Benchmark
+javac -encoding UTF-8 -d out src\*.java
+java -cp out AlgorithmTests
+java -cp out Benchmark
 ```
 
 The generated plots are already available in `results`. To rebuild them, install Python and matplotlib:
@@ -30,7 +31,7 @@ python -m pip install -r requirements.txt
 python scripts/plot_results.py
 ```
 
-The script also updates the results table below. After taking new measurements, review the discussion manually because it describes the saved benchmark run.
+`Benchmark` replaces the CSV files and environment record in `results`. The plotting script then rebuilds the figures and results table from those CSV files. The discussion below describes the committed measurements; rerunning the benchmark produces different timings, so its numerical discussion must be updated to match a new run.
 
 Project structure:
 
@@ -90,6 +91,8 @@ The algorithm checks every valid starting position. At each position, characters
 First, the `lps` array is constructed. The value `lps[i]` is the length of the longest proper prefix of `pattern[0..i]` that is also a suffix of that substring. A proper prefix is shorter than the entire substring.
 
 On a mismatch, KMP reuses the match found so far by setting `j = lps[j-1]`. This length indicates how much of the pattern can remain matched. If this candidate also fails, the algorithm moves to the next shorter prefix. The text index never moves backward. This avoids checking entire sections of text again. After a complete match, `lps` is also used so that overlapping occurrences are preserved.
+
+The invariant is that the first `j` pattern characters equal the text immediately before index `i`. Any shorter alignment that can still match must be both a prefix of the pattern and a suffix of this matched text. The LPS fallback chain visits exactly these candidates, so skipping other alignments cannot discard a valid occurrence. During preprocessing and search, each successful advance can account for only a bounded number of later fallback steps, giving O(m) preprocessing and O(n) search time.
 
 ### Rabin–Karp
 
@@ -169,7 +172,9 @@ The following cases are covered:
 - Kasai: the manually verified `banana` example, an empty string, a single character, and `aaaa`.
 - Another 200 random examples with seed 7: search results are compared with an independent check using the standard `startsWith` method, and LCP values are compared with direct comparisons of each pair of adjacent suffixes. Library-based verification is used only in tests.
 
-The recorded test run produced **PASS: 4670 checks**. This is the number of individual checks, not independent input datasets. Before search timings are collected, the results of the three algorithms are also checked for agreement.
+Additional tests cover all 961 ordered pairs of binary strings of lengths 0 through 4. LCS is checked by enumerating subsequences, and edit distance by recursively enumerating edit paths without a DP table. Search tests also cover repeated-prefix fallbacks, case sensitivity, UTF-16 surrogate pairs, and a repetitive text with a mismatch at the final pattern character. Random suffix arrays are checked for lexicographic order, and the first LCP entry is checked separately.
+
+The test run produced **PASS: 10623 checks**. Compilation was also checked with `javac --release 8` to verify Java 8 API compatibility. This is the number of individual checks, not independent input datasets. Before search timings are collected, the results of the three algorithms are also checked for agreement.
 
 ## 6. Experimental Setup
 
@@ -237,11 +242,15 @@ All five individual durations are available in [raw.csv](results/raw.csv), and t
 
 ## 8. Discussion
 
-When the string length increased from 500 to 1000, LCS time increased from approximately 0.73 to 2.96 ms, or about fourfold. Edit Distance time increased from 0.95 to 3.72 ms. This agrees with quadratic complexity: doubling both lengths quadruples the number of cells. Increasing the length from 100 to 500 does not produce an exact ratio of 25 because JVM warm-up effects and fixed overhead are noticeable in short measurements.
+When the string length increased from 500 to 1000, LCS time increased from approximately 0.73 to 2.96 ms, or about fourfold. Edit Distance time increased from 0.95 to 3.72 ms. This agrees with quadratic complexity: doubling both lengths quadruples the number of cells. Increasing the length from 100 to 500 does not produce an exact ratio of 25. The five LCS measurements at length 100 range from 0.1805 to 0.5344 ms, showing substantial variation. JVM optimization and fixed overhead are possible contributors; this experiment does not isolate their individual effects.
 
 Naive search was competitive on random text. For 100,000 characters and a present pattern, it performed 132,854 comparisons, while KMP performed 124,272 search comparisons. Random characters often differ near the start of a check, so the naive algorithm rarely compares the entire pattern. Its theoretical worst case is rarely encountered here. In addition, m is fixed: even the O(nm) upper bound grows linearly in n when m is constant. These experiments do not demonstrate the naive algorithm's worst case.
 
 KMP guarantees O(n+m) time but is not necessarily the fastest on every input. For example, for an absent pattern at n = 100,000, it took approximately 0.64 ms, compared with 0.62 ms for naive search. Such a small difference does not establish that either algorithm is universally faster.
+
+The individual measurements support this caution: in that absent-pattern case, naive search ranges from 0.5729 to 0.6874 ms, and KMP from 0.5084 to 0.7851 ms. These ranges overlap substantially. Five runs on one input do not establish a statistically reliable ranking.
+
+A separate deterministic operation-count test illustrates behavior hidden by random inputs. For a text of 1000 `a` characters and a pattern of 19 `a` characters followed by `b`, naive search performs exactly `(1000-20+1) * 20 = 19,620` character comparisons. KMP performs 1,981 search comparisons on the same input. Both return an empty list. This is a correctness and operation-count test, separate from the fixed timed workloads, and demonstrates how LPS fallback avoids repeatedly checking a long prefix.
 
 Rabin–Karp took approximately 1.10–1.17 ms at n = 100,000. It performed only 20 character comparisons when the pattern was present and 0 when it was absent. Most of its work comes from rolling hash computation, including modular arithmetic. A low character comparison count does not guarantee a short running time.
 
@@ -254,7 +263,3 @@ The experiment has several limitations: one pair of strings per size, a short fi
 LCS is suitable for finding a common subsequence, while Edit Distance measures the number of changes between strings. Both methods are straightforward to explain using a table, but require quadratic space when the string lengths are equal.
 
 Naive search is the simplest to implement and can be fast on random data. KMP requires an LPS array but guarantees linear time including preprocessing. Rabin–Karp uses hashes and performs few character comparisons, but its performance depends on hashing costs, collisions, and the number of matches. Kasai builds the LCP array in linear time once the suffix array is available.
-
-## 10. Submission
-
-Upload this project to your own GitHub repository and submit the link through Moodle. The project includes the code, tests, full report, raw results, and three plots. Publishing to GitHub and submitting through Moodle have not been performed automatically.
