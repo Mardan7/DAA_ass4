@@ -1,10 +1,10 @@
 # Assignment 4 — Text Analysis
 
-Проект на Java для сравнения алгоритмов работы со строками. Здесь реализованы LCS, расстояние Левенштейна, наивный поиск, KMP, Rabin–Karp и алгоритм Касаи. Код написан без сторонних Java-библиотек. Этот README является полным отчётом.
+A Java project comparing string algorithms: LCS, Levenshtein distance, naive string matching, KMP, Rabin–Karp, and Kasai's algorithm. The code uses no third-party Java libraries. This README serves as the full report.
 
-## 1. Запуск проекта
+## 1. Running the Project
 
-Нужен JDK версии 8 или новее. JRE недостаточно, потому что для компиляции требуется `javac`. Команды выполняются из корня проекта:
+JDK 8 or later is required. A JRE alone is not enough because compilation requires `javac`. Run these commands from the project root:
 
 ```text
 mkdir out
@@ -13,7 +13,7 @@ java -cp out AlgorithmTests
 java -cp out Benchmark
 ```
 
-В PowerShell, если JDK установлен, но не добавлен в PATH, можно указать путь к нему. На компьютере, где выполнялись эксперименты:
+In PowerShell, if the JDK is installed but is not on PATH, you can specify its location. The following path was used on the computer where the experiments were run:
 
 ```powershell
 $jdkPath = "$env:USERPROFILE\.jdks\openjdk-25.0.2\bin"
@@ -23,95 +23,95 @@ New-Item -ItemType Directory -Force out | Out-Null
 & "$jdkPath\java.exe" -cp out Benchmark
 ```
 
-Готовые графики уже находятся в `results`. Для их повторного построения нужен Python и matplotlib:
+The generated plots are already available in `results`. To rebuild them, install Python and matplotlib:
 
 ```text
 python -m pip install -r requirements.txt
 python scripts/plot_results.py
 ```
 
-Скрипт также обновляет таблицу результатов ниже. После новых замеров обсуждение результатов нужно проверить вручную, поскольку оно относится к сохранённому запуску.
+The script also updates the results table below. After taking new measurements, review the discussion manually because it describes the saved benchmark run.
 
-Структура проекта:
+Project structure:
 
 ```text
-src/DynamicProgramming.java  — LCS и Edit Distance
+src/DynamicProgramming.java  — LCS and Edit Distance
 src/StringMatching.java     — Naive, KMP, Rabin–Karp
-src/Kasai.java              — LCP и вспомогательное построение suffix array
-src/AlgorithmTests.java     — тесты
-src/Benchmark.java          — генерация данных и замеры
-scripts/plot_results.py     — графики и таблица отчёта
-results/                   — CSV, графики и параметры среды
+src/Kasai.java              — LCP and helper suffix array construction
+src/AlgorithmTests.java     — tests
+src/Benchmark.java          — data generation and measurements
+scripts/plot_results.py     — plots and report table
+results/                   — CSV files, plots, and environment details
 ```
 
-## 2. Алгоритмы и объяснение корректности
+## 2. Algorithms and Correctness
 
-### LCS — наибольшая общая подпоследовательность
+### LCS — Longest Common Subsequence
 
-Подпоследовательность сохраняет порядок символов, но символы не обязаны идти подряд. Например, `ac` — подпоследовательность `abc`. Метод возвращает только длину LCS.
+A subsequence preserves character order, but its characters do not have to be consecutive. For example, `ac` is a subsequence of `abc`. The method returns only the LCS length.
 
-Пусть `dp[i][j]` — длина LCS для первых `i` символов строки `a` и первых `j` символов строки `b`.
+Let `dp[i][j]` be the LCS length for the first `i` characters of string `a` and the first `j` characters of string `b`.
 
 ```text
 dp[0][j] = 0
 dp[i][0] = 0
 
-если a[i-1] == b[j-1]:
+if a[i-1] == b[j-1]:
     dp[i][j] = dp[i-1][j-1] + 1
-иначе:
+else:
     dp[i][j] = max(dp[i-1][j], dp[i][j-1])
 ```
 
-У пустой строки нет общей непустой подпоследовательности с другой строкой. Если последние символы совпадают, их можно добавить к ответу для более коротких префиксов. Если они разные, общая подпоследовательность не может использовать оба этих символа как последний символ: нужно исключить последний символ хотя бы одной строки. Выбираем лучший из двух вариантов. Таблица заполняется от коротких префиксов к длинным, поэтому необходимые значения уже известны.
+An empty string has no nonempty common subsequence with another string. If the last characters match, they can extend the answer for the shorter prefixes. If they differ, a common subsequence cannot use both as its final character, so the last character of at least one string must be excluded. We choose the better of these two options. The table is filled from shorter prefixes to longer ones, so all required values are already known.
 
-### Edit Distance — расстояние Левенштейна
+### Edit Distance — Levenshtein Distance
 
-Это минимальное число вставок, удалений и замен для превращения одной строки в другую. Каждая операция стоит 1, совпадение стоит 0.
+This is the minimum number of insertions, deletions, and substitutions needed to transform one string into another. Each operation costs 1; a matching character costs 0.
 
 ```text
 dp[i][0] = i
 dp[0][j] = j
-cost = 0 при a[i-1] == b[j-1], иначе 1
+cost = 0 if a[i-1] == b[j-1], otherwise 1
 dp[i][j] = min(
-    dp[i-1][j] + 1,       // удалить
-    dp[i][j-1] + 1,       // вставить
-    dp[i-1][j-1] + cost   // заменить или оставить
+    dp[i-1][j] + 1,       // delete
+    dp[i][j-1] + 1,       // insert
+    dp[i-1][j-1] + cost   // substitute or keep
 )
 ```
 
-Чтобы получить пустую строку, нужно удалить все символы. Чтобы из пустой строки получить другую, нужно вставить все её символы. В общем случае рассматриваются все варианты последнего шага. Для каждого варианта берётся оптимальный ответ для меньших префиксов. Минимум из этих вариантов даёт оптимальный ответ для текущей пары префиксов.
+To obtain an empty string, every character must be deleted. To create a string from an empty one, every character must be inserted. In the general case, all possible final operations are considered. Each option uses the optimal answer for smaller prefixes. The minimum of these options gives the optimal answer for the current pair of prefixes.
 
-### Наивный поиск
+### Naive String Matching
 
-Алгоритм проверяет каждую допустимую стартовую позицию. Внутри позиции символы сравниваются слева направо до несовпадения или конца образца. Если совпали все символы, индекс добавляется в список. Проверяются все возможные позиции, поэтому ни одно вхождение не пропускается.
+The algorithm checks every valid starting position. At each position, characters are compared from left to right until a mismatch or the end of the pattern. If all characters match, the index is added to the list. Every possible position is checked, so no occurrence is missed.
 
 ### KMP
 
-Сначала строится массив `lps`. Значение `lps[i]` — длина наибольшего собственного префикса образца, который одновременно является суффиксом его части `pattern[0..i]`. Собственный префикс не равен всей этой части.
+First, the `lps` array is constructed. The value `lps[i]` is the length of the longest proper prefix of `pattern[0..i]` that is also a suffix of that substring. A proper prefix is shorter than the entire substring.
 
-При несовпадении KMP использует уже найденное совпадение: присваивает `j = lps[j-1]`. Эта длина показывает, какую часть образца можно оставить совпавшей. Если вариант снова не подходит, алгоритм переходит к следующему, более короткому префиксу. Индекс текста назад не двигается. Это убирает повторную проверку целых участков текста. После полного совпадения также используется `lps`, поэтому пересекающиеся вхождения сохраняются.
+On a mismatch, KMP reuses the match found so far by setting `j = lps[j-1]`. This length indicates how much of the pattern can remain matched. If this candidate also fails, the algorithm moves to the next shorter prefix. The text index never moves backward. This avoids checking entire sections of text again. After a complete match, `lps` is also used so that overlapping occurrences are preserved.
 
 ### Rabin–Karp
 
-Для образца и окна текста вычисляется полиномиальный хеш. Основание равно 257, модуль — 1 000 000 007. Переменные типа `long` позволяют безопасно выполнять промежуточные вычисления при этих константах.
+A polynomial hash is computed for the pattern and the current text window. The base is 257, and the modulus is 1,000,000,007. Variables of type `long` safely hold intermediate calculations with these constants.
 
-При сдвиге окна удаляется вклад первого символа, оставшаяся часть умножается на основание и добавляется новый символ. Поэтому пересчёт хеша занимает O(1).
+When the window shifts, the contribution of its first character is removed, the remaining value is multiplied by the base, and the new character is added. Updating the hash therefore takes O(1) time.
 
 ```text
 nextHash = ((oldHash - firstChar * base^(m-1)) * base + nextChar) mod modulus
 ```
 
-В коде остаток после вычитания приводится к неотрицательному значению. Равные строки обязательно имеют одинаковые хеши, но одинаковые хеши могут быть и у разных строк. Поэтому при равенстве хешей выполняется посимвольная проверка. Коллизии могут замедлить поиск, но не создают ложных ответов. В тестах используется модуль 2, чтобы коллизии возникали часто.
+The code normalizes the remainder after subtraction to a nonnegative value. Equal strings always have equal hashes, but different strings may also have equal hashes. Therefore, a character-by-character check is performed whenever the hashes match. Collisions can slow down the search but cannot produce false results. The tests use modulus 2 to force frequent collisions.
 
-### Алгоритм Касаи
+### Kasai's Algorithm
 
-Суффикс — часть строки от некоторой позиции до конца. Суффиксный массив `sa` хранит начальные позиции всех суффиксов в лексикографическом порядке.
+A suffix is the part of a string from a given position to its end. The suffix array `sa` stores the starting positions of all suffixes in lexicographic order.
 
-Здесь `lcp[0] = 0`, а `lcp[r]` — длина общего префикса суффиксов, начинающихся в `sa[r-1]` и `sa[r]`.
+Here, `lcp[0] = 0`, and `lcp[r]` is the length of the common prefix of the suffixes starting at `sa[r-1]` and `sa[r]`.
 
-Ручной пример для `banana`:
+A worked example for `banana`:
 
-| r | sa[r] | Суффикс | lcp[r] |
+| r | sa[r] | Suffix | lcp[r] |
 |---:|---:|---|---:|
 | 0 | 5 | a | 0 |
 | 1 | 3 | ana | 1 |
@@ -120,84 +120,84 @@ nextHash = ((oldHash - firstChar * base^(m-1)) * base + nextChar) mod modulus
 | 4 | 4 | na | 0 |
 | 5 | 2 | nana | 2 |
 
-Сначала строится обратный массив `rank`: он показывает место каждого суффикса в `sa`. Затем суффиксы перебираются в порядке их позиций в исходной строке. Каждый сравнивается со своим предыдущим соседом в `sa`.
+First, the inverse array `rank` is built to record each suffix's position in `sa`. The suffixes are then visited in the order of their starting positions in the original string. Each is compared with its preceding neighbor in `sa`.
 
-Если у двух суффиксов совпали первые `h` символов, после удаления первых символов остаются хотя бы `h-1` общих символов. Для нового суффикса его непосредственный предыдущий сосед в отсортированном массиве имеет общий префикс не короче этой границы. Поэтому сравнение можно продолжить с `h-1`, не проверяя начало заново. Для самого первого суффикса в порядке `sa` предыдущего соседа нет, и `h` сбрасывается в 0.
+If two suffixes share their first `h` characters, removing their first characters leaves at least `h-1` common characters. The new suffix's immediate predecessor in the sorted array shares a prefix at least this long. Comparison can therefore continue from `h-1` without rechecking the beginning. The first suffix in `sa` has no predecessor, so `h` is reset to 0.
 
-Счётчик `h` обычно уменьшается максимум на 1 за итерацию; сброс для `rank == 0` возможен только один раз и не превышает n. Значит, суммарное число увеличений `h` тоже O(n). Вместе с построением `rank` алгоритм работает за O(n).
+The counter `h` normally decreases by at most 1 per iteration. The reset for `rank == 0` can occur only once and is at most n. Thus, the total number of increments of `h` is also O(n). Including the construction of `rank`, the algorithm runs in O(n) time.
 
-## 3. Решения и допущения
+## 3. Design Decisions and Assumptions
 
-- Индексы начинаются с 0. Все вхождения, включая пересекающиеся, возвращаются по порядку.
-- Пустой образец совпадает на всех границах строки: от 0 до n включительно. Если обе строки пустые, ответ — `[0]`.
-- Если образец длиннее текста, возвращается пустой список.
-- Входные строки не должны быть `null`. Сравнение учитывает регистр.
-- Java `char` означает кодовую единицу UTF-16. Для букв алфавита `abcd` это соответствует одному символу; для некоторых emoji один видимый символ занимает две позиции.
-- Динамическое программирование использует полную таблицу. Это проще объяснить, хотя память можно сократить, оставляя только предыдущую и текущую строки.
-- Касаи получает корректный, уже отсортированный суффиксный массив без повторяющихся индексов. Проверяется его длина, но полная проверка корректности входного массива не выполняется.
-- Для экспериментов суффиксный массив строится простой сортировкой индексов с прямым сравнением суффиксов. Это разрешённый вспомогательный метод, а не реализация быстрого построения SA. В худшем случае он требует O(n² log n) времени и O(n) дополнительной памяти. Его время не входит в замер Касаи.
+- Indices are zero-based. All occurrences, including overlapping ones, are returned in order.
+- An empty pattern matches every string boundary, from 0 to n inclusive. If both strings are empty, the result is `[0]`.
+- If the pattern is longer than the text, an empty list is returned.
+- Input strings must not be `null`. Comparisons are case-sensitive.
+- A Java `char` is a UTF-16 code unit. For the alphabet `abcd`, this corresponds to one character; some emoji occupy two positions per visible character.
+- Dynamic programming uses the full table. This is easier to explain, although memory could be reduced by keeping only the previous and current rows.
+- Kasai's algorithm receives a valid, already sorted suffix array with no duplicate indices. Its length is checked, but the input array is not fully validated.
+- For the experiments, the suffix array is built by sorting indices using direct suffix comparisons. This is an allowed helper method, not an implementation of fast suffix array construction. Its worst-case complexity is O(n² log n) time and O(n) auxiliary space. Its running time is excluded from the Kasai measurements.
 
-## 4. Теоретическая сложность
+## 4. Theoretical Complexity
 
-Для динамического программирования n и m — длины двух строк. Для поиска n — длина текста, m — длина образца. В таблице поиска предполагается `1 <= m <= n`; `q = n-m+1` — число возможных стартовых позиций. Память указана без входных данных и возвращаемого результата.
+For dynamic programming, n and m are the lengths of the two strings. For string matching, n is the text length and m is the pattern length. The search entries in the table assume `1 <= m <= n`; `q = n-m+1` is the number of possible starting positions. Space estimates exclude the input and the returned result.
 
-| Алгоритм | Основная операция | Подготовка | Лучший случай | Худший случай | Доп. память | Объяснение |
+| Algorithm | Main operation | Preprocessing | Best case | Worst case | Auxiliary space | Explanation |
 |---|---|---|---|---|---|---|
-| LCS | Совпадение: диагональ + 1; иначе max двух соседей | O(n+m) для границ, входит в общее время | O(nm) | O(nm) | O(nm) | Заполняются все n·m ячеек независимо от символов |
-| Edit Distance | min удаления, вставки и замены | O(n+m) для границ, входит в общее время | O(nm) | O(nm) | O(nm) | В каждой ячейке постоянное число действий |
-| Naive | Посимвольная проверка каждой позиции | O(1) | Θ(q), несовпадение сразу | O(qm) | O(1) | До m сравнений на одну позицию |
-| KMP | Переходы по lps | Θ(m), память O(m) | Θ(n) поиск | O(n) поиск; O(n+m) вместе | O(m) | Текст не просматривается заново с начала совпадения |
-| Rabin–Karp | Rolling hash и проверка равных хешей | Θ(m) | Θ(q) поиск без проверок длинных совпадений | O(qm) поиск; O(m+qm) вместе | O(1) | Каждое равенство хешей может потребовать m сравнений |
-| Kasai | Сравнение соседних суффиксов с переносом h-1 | Θ(n) для rank, входит в общее время | Θ(n) | Θ(n) | O(n) | Число увеличений h за весь проход линейное |
+| LCS | Match: diagonal + 1; otherwise max of two neighbors | O(n+m) for boundaries, included in total time | O(nm) | O(nm) | O(nm) | All n·m cells are filled regardless of the characters |
+| Edit Distance | Minimum of deletion, insertion, and substitution | O(n+m) for boundaries, included in total time | O(nm) | O(nm) | O(nm) | A constant number of operations per cell |
+| Naive | Character-by-character check at every position | O(1) | Θ(q), immediate mismatch | O(qm) | O(1) | Up to m comparisons per position |
+| KMP | Transitions using lps | Θ(m) time, O(m) space | Θ(n) search | O(n) search; O(n+m) total | O(m) | The text is not rescanned from the beginning of a match |
+| Rabin–Karp | Rolling hash and verification of hash matches | Θ(m) | Θ(q) search without long match verifications | O(qm) search; O(m+qm) total | O(1) | Each hash match may require m comparisons |
+| Kasai | Compare adjacent suffixes, carrying over h-1 | Θ(n) for rank, included in total time | Θ(n) | Θ(n) | O(n) | The total number of increments of h is linear |
 
-Для LCS и Edit Distance более точная оценка с учётом пустых строк и выделения таблицы — O((n+1)(m+1)).
+For LCS and Edit Distance, a more precise bound accounting for empty strings and table allocation is O((n+1)(m+1)).
 
-Для Rabin–Karp ожидаемое время часто записывают как O(n+m), если коллизии редки и настоящих совпадений мало. Более точная оценка этой реализации — O(n+m+(k+c)m), где k — число настоящих совпадений, c — число ложных совпадений хеша. На повторяющемся тексте настоящих совпадений может быть много, и проверки сами приводят к квадратичному времени. Фиксированный хеш не гарантирует линейное время для любых входов.
+For Rabin–Karp, expected running time is often written as O(n+m) when collisions are rare and there are few actual matches. A more precise bound for this implementation is O(n+m+(k+c)m), where k is the number of actual matches and c is the number of false hash matches. Repetitive text can contain many actual matches, and verifying them can itself lead to quadratic time. A fixed hash does not guarantee linear time for every input.
 
-Список из k найденных позиций занимает O(k) памяти дополнительно к оценке в таблице. Для пустого образца все три метода тратят Θ(n+1) времени и памяти на результат. Для образца длиннее текста возвращают результат за O(1). Возвращаемый LCP занимает O(n) памяти.
+The list of k matching positions requires O(k) space in addition to the table estimates. For an empty pattern, all three search methods take Θ(n+1) time and space for the result. For a pattern longer than the text, they return in O(1) time. The returned LCP array takes O(n) space.
 
-## 5. Проверка корректности
+## 5. Correctness Testing
 
-Тесты запускаются обычным `main`, без JUnit. Проверки выбрасывают `AssertionError` при ошибке, поэтому флаг `-ea` не требуется.
+Tests run through a regular `main` method without JUnit. Failed checks throw `AssertionError`, so the `-ea` flag is not required.
 
-Проверены следующие случаи:
+The following cases are covered:
 
-- LCS: одинаковые строки, разные строки, пустая строка с обеих сторон и пример с ответом 4.
-- Edit Distance: одинаковые строки, пустая строка с обеих сторон, отдельная вставка, удаление, замена и `kitten → sitting` с ответом 3.
-- Поиск: вхождение в начале, середине и конце; несколько вхождений; пересечения; отсутствие; слишком длинный образец; пустые текст и образец.
-- Каждый тест поиска сравнивает ответы всех трёх алгоритмов с одним ожидаемым списком. Отдельно проверяется Rabin–Karp с частыми коллизиями.
-- Касаи: вручную проверенный пример `banana`, пустая строка, один символ и строка `aaaa`.
-- Ещё 200 случайных примеров с seed 7: поиск сравнивается с независимой проверкой через стандартный `startsWith`, LCP — с прямым сравнением каждой пары соседних суффиксов. Библиотечная проверка используется только в тестах.
+- LCS: identical strings, different strings, an empty string on either side, and an example with answer 4.
+- Edit Distance: identical strings, an empty string on either side, individual insertion, deletion, and substitution operations, and `kitten → sitting` with answer 3.
+- String matching: occurrences at the beginning, middle, and end; multiple occurrences; overlaps; no match; a pattern longer than the text; and empty text and pattern.
+- Each search test compares all three algorithms against the same expected list. Rabin–Karp is also tested separately with frequent collisions.
+- Kasai: the manually verified `banana` example, an empty string, a single character, and `aaaa`.
+- Another 200 random examples with seed 7: search results are compared with an independent check using the standard `startsWith` method, and LCP values are compared with direct comparisons of each pair of adjacent suffixes. Library-based verification is used only in tests.
 
-Фактический результат запуска: **PASS: 4670 checks**. Это число отдельных проверок, а не число независимых наборов входных данных. Перед замерами поиска также проверяется совпадение результатов трёх алгоритмов.
+The recorded test run produced **PASS: 4670 checks**. This is the number of individual checks, not independent input datasets. Before search timings are collected, the results of the three algorithms are also checked for agreement.
 
-## 6. Условия эксперимента
+## 6. Experimental Setup
 
-Сохранённые результаты получены на Windows 11, OpenJDK 25.0.2, amd64. JVM видит 12 логических процессоров. Дополнительная информация записана в [environment.txt](results/environment.txt).
+The saved results were obtained on Windows 11, OpenJDK 25.0.2, amd64. The JVM reports 12 logical processors. Additional details are recorded in [environment.txt](results/environment.txt).
 
-Генератор — `java.util.Random`, seed 42. Алфавит для всех случайных строк — `abcd`. В одном запуске генератор используется последовательно, поэтому для воспроизведения тех же данных нужно запускать весь `Benchmark`.
+The generator is `java.util.Random` with seed 42. All random strings use the alphabet `abcd`. The generator is used sequentially within a run, so reproducing the same data requires running the entire `Benchmark`.
 
-Размеры строго соответствуют заданию:
+The sizes follow the assignment requirements exactly:
 
-- LCS и Edit Distance: две строки одинаковой длины 100, 500 и 1000. Оба алгоритма получают одну и ту же пару для каждого размера.
-- Поиск: текст длины 10 000, 50 000 и 100 000; длина образца всегда 20. Присутствующий образец берётся из середины текста. Отсутствующий генерируется из того же алфавита и проверяется до замера. На каждом размере все три метода получают одинаковые текст и образец для каждого случая.
-- Касаи: строки длины 1000, 5000 и 10 000. Суффиксный массив строится до замера.
+- LCS and Edit Distance: two strings of equal length, using lengths 100, 500, and 1000. Both algorithms receive the same pair for each size.
+- String matching: text lengths of 10,000, 50,000, and 100,000; the pattern length is always 20. The present pattern is taken from the middle of the text. The absent pattern is generated from the same alphabet and checked before timing. At each size, all three methods receive the same text and pattern for each scenario.
+- Kasai: string lengths of 1000, 5000, and 10,000. The suffix array is built before timing begins.
 
-Для каждого сочетания алгоритма, размера и случая выполняются 10 прогревочных запусков, затем ровно 5 измеряемых. Среднее — сумма пяти длительностей, делённая на 5. Измерение выполняется через `System.nanoTime()`.
+Each combination of algorithm, size, and scenario receives 10 warm-up runs followed by exactly 5 measured runs. The average is the sum of the five durations divided by 5. Timing uses `System.nanoTime()`.
 
-Генерация входных данных, проверки ответов, вывод и запись файлов находятся вне измеряемых участков. Время включает выполнение метода, выделение его рабочих массивов и результата. Для KMP включено построение LPS, для Rabin–Karp — начальных хешей. Поэтому график поиска показывает полный вызов метода. Результат сохраняется в `volatile`-поле после замера, чтобы оставаться наблюдаемым для JVM.
+Input generation, result verification, output, and file writing are outside the timed sections. Timing includes method execution and allocation of working arrays and the result. For KMP, LPS construction is included; for Rabin–Karp, initial hash computation is included. The search plot therefore represents the complete method call. The result is stored in a `volatile` field after timing to keep it observable to the JVM.
 
-Счётчики учитывают сравнения символов; для KMP отдельно учитывается подготовка LPS. Счётчики встроены в измеряемый код. В Rabin–Karp они не учитывают арифметику хеша и сравнения числовых хешей. Поэтому ноль сравнений символов не означает отсутствие работы. На одинаковых входах счётчики повторяются, в таблице записано значение одного запуска.
+Counters record character comparisons; KMP's LPS preprocessing comparisons are counted separately. The counters are part of the timed code. For Rabin–Karp, they exclude hash arithmetic and numeric hash comparisons. Zero character comparisons therefore does not mean zero work. The counts are identical for repeated runs on the same input, so the table records the count from one run.
 
-Все пять отдельных длительностей доступны в [raw.csv](results/raw.csv), средние — в [averages.csv](results/averages.csv).
+All five individual durations are available in [raw.csv](results/raw.csv), and the averages are in [averages.csv](results/averages.csv).
 
-## 7. Результаты
+## 7. Results
 
-*Результат: для LCS — длина подпоследовательности; для Edit Distance — расстояние; для поиска — число вхождений; для Касаи — длина LCP-массива. `random` означает случайные строки, `present` — образец присутствует, `absent` — отсутствует. Прочерк означает, что счётчик для этого алгоритма не собирался.*
+*Result: LCS subsequence length; Edit Distance value; number of occurrences for string matching; LCP array length for Kasai. `random` means random strings, `present` means the pattern occurs in the text, and `absent` means it does not. A dash indicates that the counter was not collected for that algorithm.*
 
 <!-- RESULTS START -->
 
-| Алгоритм | n | Случай | Среднее, мс | Сравнения подготовки | Сравнения поиска | Результат* |
+| Algorithm | n | Scenario | Average time, ms | Preprocessing comparisons | Search comparisons | Result* |
 |---|---:|---|---:|---:|---:|---:|
 | LCS | 100 | random | 0.278100 | — | — | 64 |
 | Edit Distance | 100 | random | 0.223280 | — | — | 55 |
@@ -229,32 +229,32 @@ nextHash = ((oldHash - firstChar * base^(m-1)) * base + nextChar) mod modulus
 
 <!-- RESULTS END -->
 
-![Время LCS и Edit Distance](results/dp.png)
+![LCS and Edit Distance running time](results/dp.png)
 
-![Время поиска для присутствующего и отсутствующего образца](results/matching.png)
+![Search running time for present and absent patterns](results/matching.png)
 
-![Время Касаи без построения суффиксного массива](results/kasai.png)
+![Kasai running time excluding suffix array construction](results/kasai.png)
 
-## 8. Обсуждение
+## 8. Discussion
 
-У LCS при увеличении длины с 500 до 1000 время выросло примерно с 0,73 до 2,96 мс, то есть примерно в 4 раза. У Edit Distance — с 0,95 до 3,72 мс. Это согласуется с квадратичной сложностью: при удвоении обеих длин число ячеек увеличивается в четыре раза. Переход от 100 к 500 не даёт идеального отношения 25: на малых замерах заметны прогрев JVM и постоянные затраты.
+When the string length increased from 500 to 1000, LCS time increased from approximately 0.73 to 2.96 ms, or about fourfold. Edit Distance time increased from 0.95 to 3.72 ms. This agrees with quadratic complexity: doubling both lengths quadruples the number of cells. Increasing the length from 100 to 500 does not produce an exact ratio of 25 because JVM warm-up effects and fixed overhead are noticeable in short measurements.
 
-На случайном тексте наивный поиск оказался конкурентоспособным. Для 100 000 символов и присутствующего образца он выполнил 132 854 сравнения, KMP — 124 272 сравнения поиска. Случайные символы часто различаются уже в начале проверки, поэтому наивный алгоритм редко сравнивает весь образец. Его плохой теоретический случай здесь почти не встречается. Кроме того, m фиксировано: даже верхняя граница O(nm) при постоянном m растёт линейно по n. Эти эксперименты не демонстрируют худший случай наивного алгоритма.
+Naive search was competitive on random text. For 100,000 characters and a present pattern, it performed 132,854 comparisons, while KMP performed 124,272 search comparisons. Random characters often differ near the start of a check, so the naive algorithm rarely compares the entire pattern. Its theoretical worst case is rarely encountered here. In addition, m is fixed: even the O(nm) upper bound grows linearly in n when m is constant. These experiments do not demonstrate the naive algorithm's worst case.
 
-KMP даёт гарантию O(n+m), но не обязан быть самым быстрым на каждом входе. Например, для отсутствующего образца при n = 100 000 он занял около 0,64 мс, а наивный поиск — 0,62 мс. Такая небольшая разница не позволяет объявить один алгоритм универсально быстрее другого.
+KMP guarantees O(n+m) time but is not necessarily the fastest on every input. For example, for an absent pattern at n = 100,000, it took approximately 0.64 ms, compared with 0.62 ms for naive search. Such a small difference does not establish that either algorithm is universally faster.
 
-Rabin–Karp при n = 100 000 занял около 1,10–1,17 мс. При этом он выполнил только 20 сравнений символов в случае присутствия образца и 0 в случае отсутствия. Причина в том, что основная работа приходится на вычисление rolling hash, включая операции по модулю. Малое число сравнений символов не гарантирует малое время.
+Rabin–Karp took approximately 1.10–1.17 ms at n = 100,000. It performed only 20 character comparisons when the pattern was present and 0 when it was absent. Most of its work comes from rolling hash computation, including modular arithmetic. A low character comparison count does not guarantee a short running time.
 
-У Касаи рост времени не был строго пропорционален размеру: получено примерно 0,085, 0,240 и 0,255 мс. Эти очень короткие замеры зависят от оптимизации JVM и состояния компьютера. Они не опровергают линейную оценку, но и не доказывают её: оценка следует из анализа алгоритма. Построение суффиксного массива здесь исключено, поэтому график нельзя считать временем всего процесса «строка → LCP».
+Kasai's running time did not grow in strict proportion to input size: the measured times were approximately 0.085, 0.240, and 0.255 ms. These very short measurements depend on JVM optimization and the state of the computer. They neither disprove nor establish the linear bound, which follows from the algorithm's analysis. Suffix array construction is excluded, so the plot does not represent the full process from a string to its LCP array.
 
-Ограничения эксперимента: одна пара строк на размер, короткий фиксированный образец, один запуск JVM, фиксированный порядок алгоритмов и только пять измерений после прогрева. Влияние сборки мусора, фоновых процессов и JIT не исключено. Результаты показывают поведение этой реализации на этих данных; на другой машине числа будут отличаться.
+The experiment has several limitations: one pair of strings per size, a short fixed-length pattern, a single JVM run, a fixed algorithm order, and only five measurements after warm-up. Garbage collection, background processes, and JIT compilation may affect the results. The measurements describe this implementation on these inputs; the numbers will differ on another machine.
 
-## 9. Вывод
+## 9. Conclusion
 
-LCS подходит для поиска общей подпоследовательности, а Edit Distance — для оценки числа изменений между строками. Оба метода понятны через таблицу, но требуют квадратичной памяти при равных длинах.
+LCS is suitable for finding a common subsequence, while Edit Distance measures the number of changes between strings. Both methods are straightforward to explain using a table, but require quadratic space when the string lengths are equal.
 
-Наивный поиск проще всего реализовать и может быть быстрым на случайных данных. KMP требует массив LPS, зато гарантирует линейное время вместе с подготовкой. Rabin–Karp использует хеши и мало сравнивает символы, но зависит от стоимости хеширования, коллизий и количества совпадений. Касаи строит LCP за линейное время, когда суффиксный массив уже готов.
+Naive search is the simplest to implement and can be fast on random data. KMP requires an LPS array but guarantees linear time including preprocessing. Rabin–Karp uses hashes and performs few character comparisons, but its performance depends on hashing costs, collisions, and the number of matches. Kasai builds the LCP array in linear time once the suffix array is available.
 
-## 10. Сдача
+## 10. Submission
 
-Нужно разместить этот проект в своём репозитории GitHub и отправить ссылку через Moodle. Сам код, тесты, полный отчёт, исходные результаты и три графика находятся в проекте. Публикация в GitHub и отправка в Moodle автоматически не выполнялись.
+Upload this project to your own GitHub repository and submit the link through Moodle. The project includes the code, tests, full report, raw results, and three plots. Publishing to GitHub and submitting through Moodle have not been performed automatically.

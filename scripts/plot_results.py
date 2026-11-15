@@ -43,7 +43,7 @@ fig.tight_layout()
 fig.savefig(ROOT / "results/kasai.png")
 plt.close(fig)
 
-lines = ["| Алгоритм | n | Случай | Среднее, мс | Сравнения подготовки | Сравнения поиска | Результат* |",
+lines = ["| Algorithm | n | Scenario | Average time, ms | Preprocessing comparisons | Search comparisons | Result* |",
          "|---|---:|---|---:|---:|---:|---:|"]
 for row in rows:
     matching = row["algorithm"] in {"Naive", "KMP", "Rabin-Karp"}
